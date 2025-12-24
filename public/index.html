@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>豆包声音复刻</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+        h1 { color: white; text-align: center; margin-bottom: 30px; }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            font-size: 18px;
+        }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; color: #555; font-weight: 500; font-size: 14px; }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        input:focus, select:focus { outline: none; border-color: #667eea; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+        .file-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            background: #f8f9ff;
+            color: #667eea;
+            cursor: pointer;
+        }
+        .file-label.has-file { border-style: solid; background: #e8ffe8; color: #28a745; }
+        .file-wrap { position: relative; }
+        .file-wrap input { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .btn-primary:disabled { background: #ccc; }
+        .btn-secondary { background: #6c757d; color: white; margin-top: 10px; }
+        .result { margin-top: 16px; padding: 14px; border-radius: 8px; display: none; font-size: 14px; }
+        .result.success { background: #d4edda; color: #155724; display: block; }
+        .result.error { background: #f8d7da; color: #721c24; display: block; }
+        .result.info { background: #cce5ff; color: #004085; display: block; }
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; }
+        .tab { padding: 12px 20px; cursor: pointer; color: #666; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+        .tab.active { color: #667eea; border-bottom-color: #667eea; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .hint { font-size: 12px; color: #888; margin-top: 4px; }
+        .notice { background: #fff3cd; border-radius: 8px; padding: 12px; font-size: 12px; color: #856404; }
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; }
+        .badge.training { background: #fff3cd; color: #856404; }
+        .badge.success { background: #d4edda; color: #155724; }
+        .badge.failed { background: #f8d7da; color: #721c24; }
+        .badge.active { background: #cce5ff; color: #004085; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎙️ 豆包声音复刻</h1>
+    
+    <div class="card">
+        <h2>🔑 API 配置</h2>
+        <div class="row">
+            <div class="form-group">
+                <label>Access Token</label>
+                <input type="password" id="accessToken" placeholder="从火山引擎获取">
+            </div>
+            <div class="form-group">
+                <label>APP ID</label>
+                <input type="text" id="appId" placeholder="例如: 3434758255">
+            </div>
+        </div>
+        <button class="btn-secondary" onclick="saveConfig()">💾 保存到本地</button>
+    </div>
+    
+    <div class="card">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('clone')">🎤 声音复刻</div>
+            <div class="tab" onclick="switchTab('status')">📊 状态查询</div>
+        </div>
+        
+        <div id="tab-clone" class="tab-content active">
+            <div class="form-group">
+                <label>Speaker ID</label>
+                <input type="text" id="cloneSpeakerId" placeholder="例如: S_xxxxxxxx">
+                <div class="hint">在火山引擎控制台创建</div>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>模型</label>
+                    <select id="modelType">
+                        <option value="4">ICL 2.0 (推荐)</option>
+                        <option value="1">ICL 1.0</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>语言</label>
+                    <select id="language">
+                        <option value="0">中文</option>
+                        <option value="1">英文</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>音频文件</label>
+                <div class="file-wrap">
+                    <div class="file-label" id="fileLabel">📁 点击上传 (wav/mp3/m4a，≤10MB)</div>
+                    <input type="file" id="audioFile" accept=".wav,.mp3,.m4a,.ogg,.aac" onchange="handleFile(this)">
+                </div>
+            </div>
+            <button class="btn-primary" id="cloneBtn" onclick="clone()">🚀 开始复刻</button>
+            <div id="cloneResult" class="result"></div>
+        </div>
+        
+        <div id="tab-status" class="tab-content">
+            <div class="form-group">
+                <label>Speaker ID</label>
+                <input type="text" id="statusSpeakerId" placeholder="例如: S_xxxxxxxx">
+            </div>
+            <div class="form-group">
+                <label>Resource ID</label>
+                <select id="statusResourceId">
+                    <option value="seed-icl-2.0">seed-icl-2.0</option>
+                    <option value="seed-icl-1.0">seed-icl-1.0</option>
+                </select>
+            </div>
+            <button class="btn-primary" id="statusBtn" onclick="status()">🔍 查询状态</button>
+            <div id="statusResult" class="result"></div>
+        </div>
+    </div>
+    
+    <div class="notice">⚠️ 您的 Token 仅保存在浏览器本地，本服务不存储任何数据。</div>
+</div>
+
+<script>
+window.onload = () => {
+    const c = JSON.parse(localStorage.getItem('doubao') || '{}');
+    document.getElementById('accessToken').value = c.accessToken || '';
+    document.getElementById('appId').value = c.appId || '';
+};
+
+function saveConfig() {
+    localStorage.setItem('doubao', JSON.stringify({
+        accessToken: document.getElementById('accessToken').value,
+        appId: document.getElementById('appId').value,
+    }));
+    alert('已保存！');
+}
+
+function switchTab(t) {
+    document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tab-' + t).classList.add('active');
+}
+
+function handleFile(input) {
+    const label = document.getElementById('fileLabel');
+    if (input.files[0]) {
+        label.textContent = '✓ ' + input.files[0].name;
+        label.classList.add('has-file');
+    }
+}
+
+function toBase64(file) {
+    return new Promise(r => {
+        const reader = new FileReader();
+        reader.onload = () => r(reader.result.split(',')[1]);
+        reader.readAsDataURL(file);
+    });
+}
+
+function show(id, type, msg) {
+    const el = document.getElementById(id);
+    el.className = 'result ' + type;
+    el.innerHTML = msg;
+}
+
+function loading(id, on) {
+    const btn = document.getElementById(id);
+    if (on) {
+        btn.disabled = true;
+        btn.dataset.t = btn.textContent;
+        btn.innerHTML = '<span class="loading"></span>处理中...';
+    } else {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.t;
+    }
+}
+
+async function clone() {
+    const accessToken = document.getElementById('accessToken').value;
+    const appId = document.getElementById('appId').value;
+    const speakerId = document.getElementById('cloneSpeakerId').value;
+    const file = document.getElementById('audioFile').files[0];
+    
+    if (!accessToken || !appId || !speakerId) return show('cloneResult', 'error', '❌ 请填写完整');
+    if (!file) return show('cloneResult', 'error', '❌ 请选择文件');
+    if (file.size > 10*1024*1024) return show('cloneResult', 'error', '❌ 文件超10MB');
+    
+    loading('cloneBtn', true);
+    try {
+        const res = await fetch('/api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'clone',
+                accessToken,
+                appId,
+                speakerId,
+                audioBase64: await toBase64(file),
+                audioFormat: file.name.split('.').pop(),
+                modelType: document.getElementById('modelType').value,
+                language: document.getElementById('language').value,
+            })
+        });
+        const d = await res.json();
+        show('cloneResult', d.success ? 'success' : 'error', (d.success ? '✅ ' : '❌ ') + (d.message || d.error));
+    } catch (e) {
+        show('cloneResult', 'error', '❌ ' + e.message);
+    }
+    loading('cloneBtn', false);
+}
+
+async function status() {
+    const accessToken = document.getElementById('accessToken').value;
+    const appId = document.getElementById('appId').value;
+    const speakerId = document.getElementById('statusSpeakerId').value;
+    
+    if (!accessToken || !appId || !speakerId) return show('statusResult', 'error', '❌ 请填写完整');
+    
+    loading('statusBtn', true);
+    try {
+        const res = await fetch('/api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'status',
+                accessToken,
+                appId,
+                speakerId,
+                resourceId: document.getElementById('statusResourceId').value,
+            })
+        });
+        const d = await res.json();
+        if (d.success) {
+            const cls = ['','training','success','failed','active'][d.status] || '';
+            show('statusResult', 'info', '<b>状态:</b> <span class="badge '+cls+'">'+d.statusText+'</span>');
+        } else {
+            show('statusResult', 'error', '❌ ' + d.error);
+        }
+    } catch (e) {
+        show('statusResult', 'error', '❌ ' + e.message);
+    }
+    loading('statusBtn', false);
+}
+</script>
+</body>
+</html>
