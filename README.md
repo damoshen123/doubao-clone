@@ -6,7 +6,7 @@
 
 点击下方按钮，一键部署到 Vercel：
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/你的用户名/doubao-clone)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/damoshen123/doubao-clone)
 
 ## 使用说明
 
@@ -18,3 +18,4 @@
 
 - 您的 Token 仅保存在浏览器本地
 - 服务器不存储任何用户数据
+
